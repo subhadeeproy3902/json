@@ -2,15 +2,24 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { ZodTypeAny, z } from "zod"
-import OpenAI from 'openai';
 import { EXAMPLE_ANSWER1, EXAMPLE_PROMPT1, EXAMPLE_ANSWER2, EXAMPLE_PROMPT2 } from "@/lib/example";
 
-export const runtime = 'edge';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY!,
-  baseURL: 'https://integrate.api.nvidia.com/v1',
-})
+const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY as string;
+const genAI = new GoogleGenerativeAI(apiKey);
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
+
+const generationConfig = {
+  temperature: 1,
+  topP: 0.95,
+  topK: 64,
+  maxOutputTokens: 8192,
+  responseMimeType: "application/json",
+};
 
 const determineSchemaType = (schema: any): string => {
   if (!schema.hasOwnProperty("type")) {
@@ -85,40 +94,53 @@ export const POST = async (req: NextRequest) => {
     3,
     async (resolve, reject) => {
       try {
-        const res = await openai.chat.completions.create({
-          model: "meta/llama-3.1-8b-instruct",
-          messages: [
+
+        const SYSTEM = "You are an AI that converts text data into the attached JSON format 100% of the time or returns NULL in JSON. You respond with nothing but valid JSON based on the input data or format specified is NULL. Your output should DIRECTLY be valid JSON, nothing added before or after. You will begin right with the opening curly brace and end with the closing curly brace. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
+
+        const GenerateJSON = model.startChat({
+          generationConfig,
+          history: [
             {
-              role: "assistant",
-              content:
-                "You are an AI that converts text data into the attached JSON format 100% of the time or returns NULL in JSON. You respond with nothing but valid JSON based on the input data or format specified is NULL. Your output should DIRECTLY be valid JSON, nothing added before or after. You will begin right with the opening curly brace and end with the closing curly brace. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON",
+              role: "user",
+              parts: [
+                {
+                  text: SYSTEM + EXAMPLE_PROMPT1,
+                },
+              ],
+            },
+            {
+              role: "model",
+              parts: [
+                {
+                  text: EXAMPLE_ANSWER1,
+                }
+              ],
             },
             {
               role: "user",
-              content: EXAMPLE_PROMPT1,
+              parts: [
+                {
+                  text: EXAMPLE_PROMPT2,
+                },
+              ],
             },
             {
-              role: "system",
-              content: EXAMPLE_ANSWER1,
-            },
-            {
-              role: "user",
-              content: EXAMPLE_PROMPT2,
-            },
-            {
-              role: "system",
-              content: EXAMPLE_ANSWER2,
-            },
-            {
-              role: "user",
-              content,
+              role: "model",
+              parts: [
+                {
+                  text: EXAMPLE_ANSWER2,
+                }
+              ],
             },
           ],
-        })
+        });
 
-        const text = res.choices[0].message.content
+        const res = await GenerateJSON.sendMessage(
+          SYSTEM + content
+        )
 
-        console.log("Response from LLAMA:", text)
+        const text = res.response.text()
+        console.log(text)
 
         const validationResult = dynamicSchema.parse(JSON.parse(text || ""))
 
