@@ -72,7 +72,7 @@ const jsonSchemaToZod = (schema: any, path: string = ''): ZodTypeAny => {
           const itemType = schema[key].type;
           if (["number", "string", "boolean"].includes(itemType)) {
             if (Object.keys(schema[key]).length > 1) {
-              throw new Error(`Extra keys not allowed for type '${itemType}' at path '${currentPath}'`);
+              throw new Error(`As you have specified type '${itemType}' at path '${currentPath}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`);
             }
             shape[key] = jsonSchemaToZod({ type: itemType }, currentPath);
           } else {
