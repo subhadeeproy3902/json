@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckIcon, ArrowRight, MoveRight, Loader } from "lucide-react";
+import { CheckIcon, ArrowRight, MoveRight, Loader, Copy } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { oneDark, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -34,6 +34,11 @@ export function JsonConverter() {
   const [input, setInput] = useState<string>(
     "This phones battery life lasts a whole day!"
   );
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(output);
+  };
+
   const [loading, setLoading] = useState(false);
   const [jsonInput, setJsonInput] = useState<string | undefined>(`{
   "batteryLifeHrs": { "type": "number" }
@@ -214,7 +219,7 @@ export function JsonConverter() {
           </div>
           <div className="w-full">
             <h2 className="text-xl md:text-2xl font-bold mb-4">Output</h2>
-            <Card className="p-0 pt-0 h-64 overflow-auto resize-none">
+            <Card className="p-0 pt-0 h-64 overflow-auto resize-none relative">
               <SyntaxHighlighter
                 language="json"
                 style={vs}
@@ -228,6 +233,12 @@ export function JsonConverter() {
               >
                 {output}
               </SyntaxHighlighter>
+
+              <div className="flex justify-end p-1.5 absolute z-10 top-0 right-0">
+                <Button onClick={handleCopy} variant="secondary" className="px-2.5 py-1">
+                  <Copy size={15} />
+                </Button>
+              </div>
             </Card>
           </div>
         </div>

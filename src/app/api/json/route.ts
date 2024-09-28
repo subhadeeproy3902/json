@@ -18,22 +18,19 @@ const generationConfig = {
   responseMimeType: "application/json",
 };
 
-// Helper function to track the schema path
-const determineSchemaType = (schema: any, path: string): string => {
+const determineSchemaType = (schema: any): string => {
   if (!schema.hasOwnProperty("type")) {
     if (Array.isArray(schema)) {
-      return "array";
-    } else if (typeof schema === "object") {
-      return "object";
+      return "array"
     } else {
-      throw new Error(`Schema is missing a 'type' key at path: ${path}`);
+      return typeof schema
     }
   }
-  return schema.type;
+  return schema.type
 }
 
-const jsonSchemaToZod = (schema: any, path = ''): ZodTypeAny => {
-  const type = determineSchemaType(schema, path);
+const jsonSchemaToZod = (schema: any): ZodTypeAny => {
+  const type = determineSchemaType(schema);
 
   switch (type) {
     case "string":
@@ -43,22 +40,38 @@ const jsonSchemaToZod = (schema: any, path = ''): ZodTypeAny => {
     case "boolean":
       return z.boolean().nullable();
     case "array":
-      if (!schema.items) {
-        throw new Error(`Array schema must have 'items' defined at path: ${path}`);
+      if (!schema.items.hasOwnProperty("type")) {
+        throw new Error(`Missing type specification for array items`);
       }
-      return z.array(jsonSchemaToZod(schema.items, `${path}.items`)).nullable();
+      return z.array(jsonSchemaToZod(schema.items)).nullable();
     case "object":
       const shape: Record<string, ZodTypeAny> = {};
       for (const key in schema) {
-        if (key !== "type") {
-          shape[key] = jsonSchemaToZod(schema[key], `${path}.${key}`);
+        if (key === "type") continue;
+
+        if (typeof schema[key] === "object" && !schema[key].hasOwnProperty("type")) {
+          throw new Error(`Missing type specification for ${key}`);
+        }
+
+        if (schema[key].hasOwnProperty("type")) {
+          // If the type is specified, we can use it to build the Zod schema
+          const itemType = schema[key].type;
+          if (itemType !== "object" && itemType !== "array") {
+            shape[key] = jsonSchemaToZod({ type: itemType });
+          } else {
+            shape[key] = jsonSchemaToZod(schema[key]);
+          }
+        } else {
+          // If no type is specified for an object, throw an error
+          throw new Error(`Missing type specification for ${key}`);
         }
       }
       return z.object(shape);
     default:
-      throw new Error(`Unsupported schema type at path: ${path}`);
+      throw new Error(`Unsupported schema type: ${type}`);
   }
-};
+}
+
 
 type PromiseExecutor<T> = (
   resolve: (value: T) => void,
@@ -83,7 +96,7 @@ class RetryablePromise<T> extends Promise<T> {
 export const POST = async (req: NextRequest) => {
   try {
     const body = await req.json();
-
+    
     const genericSchema = z.object({
       data: z.string(),
       format: z.object({}).passthrough(),
@@ -91,19 +104,19 @@ export const POST = async (req: NextRequest) => {
 
     const { data, format } = genericSchema.parse(body);
 
-    console.log(format);
-
-    // Convert format schema to Zod
+    // Convert the JSON schema to Zod schema
     const dynamicSchema = jsonSchemaToZod(format);
 
+
     const content = `DATA: \n"${data}"\n\nExpected JSON format: ${JSON.stringify(
-      format)}`;
+      format
+    )}`;
 
     const validationResult = await RetryablePromise.retry<string>(
       5,
       async (resolve, reject) => {
         try {
-          const SYSTEM = "You are the best text data to attached JSON format converter. You respond with valid JSON only. You will begin right with the opening curly brace and end with the closing curly brace. Do not include type specified in the format in the output for any of the items in the format. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
+          const SYSTEM = "You are the best text data to attached JSON format converter. You respond with valid JSON only. You will begin right with the opening curly brace and end with the closing curly brace. Do not include type specified in the format in the output for any of the items in the format. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n";
 
           const GenerateJSON = model.startChat({
             generationConfig,
@@ -176,7 +189,7 @@ export const POST = async (req: NextRequest) => {
 
     return NextResponse.json(validationResult, { status: 200 });
   } catch (err: any) {
-    // Catch the error thrown by jsonSchemaToZod and return it in the response
+    // Catch errors thrown by jsonSchemaToZod
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 };
