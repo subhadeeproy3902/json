@@ -103,7 +103,7 @@ export const POST = async (req: NextRequest) => {
       5,
       async (resolve, reject) => {
         try {
-          const SYSTEM = "You are the best text data to attached JSON format converter. You respond with valid JSON only. You will begin right with the opening curly brace and end with the closing curly brace. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
+          const SYSTEM = "You are the best text data to attached JSON format converter. You respond with valid JSON only. You will begin right with the opening curly brace and end with the closing curly brace. Do not include type specified in the format in the output for any of the items in the format. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
 
           const GenerateJSON = model.startChat({
             generationConfig,

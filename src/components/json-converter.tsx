@@ -10,7 +10,7 @@ import { oneDark, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import CodeEditor from "@uiw/react-textarea-code-editor";
 
-const FetchCode = `await fetch("http://json.mvp-subha.me/api/json", {
+const FetchCodeJavaScript = `await fetch("https://json.mvp-subha.me/api/json", {
   method: "POST",
   body: JSON.stringify({
     data: "This phones battery life lasts a whole day!",
@@ -19,6 +19,16 @@ const FetchCode = `await fetch("http://json.mvp-subha.me/api/json", {
     },
   }),
 })`;
+
+const FetchCodeCurl = `curl -X POST "https://json.mvp-subha.me/api/json" \
+-H "Content-Type: application/json" \
+-d '{
+  "data": "This phones battery life lasts a whole day!",
+  "format": {
+    "batteryLifeHrs": { "type": "number" }
+  }
+}'
+`;
 
 export function JsonConverter() {
   const [input, setInput] = useState<string>(
@@ -62,7 +72,6 @@ export function JsonConverter() {
         }
       });
 
-
       const demoOutput: Record<string, number | string> = {};
       Object.keys(parsedJson).forEach((key) => {
         if (parsedJson[key].type === "number") {
@@ -96,6 +105,8 @@ export function JsonConverter() {
       setLoading(false);
     }
   };
+
+  const [language, setLanguage] = useState("javascript");
 
   return (
     <div className="container mx-auto p-4 space-y-8">
@@ -135,12 +146,39 @@ export function JsonConverter() {
         </div>
         <CardContent className="h-full w-full p-0">
           <SyntaxHighlighter
-            language="javascript"
+            language={language}
             style={oneDark}
             customStyle={{ borderRadius: "1rem" }}
           >
-            {FetchCode}
+            {language === "javascript" ? FetchCodeJavaScript : FetchCodeCurl}
           </SyntaxHighlighter>
+          <div className="absolute right-2 bottom-2 text-[12px] font-medium text-white rounded-sm bg-green-500 flex">
+            {/* Two button switch between javascript and curl */}
+            <button
+              className={`w-full px-2 py-0.5 rounded-l-sm
+                  ${
+                    language === "javascript"
+                      ? "bg-transparent"
+                      : "bg-yellow-500 hover:bg-yellow-600"
+                  }
+                `}
+              onClick={() => setLanguage("javascript")}
+            >
+              JavaScript
+            </button>
+            <button
+              className={`w-full px-2.5 py-0.5 rounded-r-sm
+                ${
+                  language === "bash"
+                    ? "bg-transparent"
+                    : "bg-yellow-500 hover:bg-yellow-600"
+                }
+              `}
+              onClick={() => setLanguage("bash")}
+            >
+              cURL
+            </button>
+          </div>
         </CardContent>
       </Card>
 
@@ -185,6 +223,7 @@ export function JsonConverter() {
                   margin: 0,
                   borderRadius: "0.5rem",
                   whiteSpace: "pre-wrap",
+                  fontSize: "1rem",
                 }}
               >
                 {output}
