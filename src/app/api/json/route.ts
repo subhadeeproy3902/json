@@ -36,19 +36,19 @@ const jsonSchemaToZod = (schema: any, path: string = ''): ZodTypeAny => {
     case "string":
       // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
-        throw new Error(`Extra keys not allowed for type 'string' at path '${path}'`);
+        throw new Error(`As you have specified type 'string' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`);
       }
       return z.string().nullable();
     case "number":
       // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
-        throw new Error(`Extra keys not allowed for type 'number' at path '${path}'`);
+        throw new Error(`As you have specified type 'number' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`);
       }
       return z.number().nullable();
     case "boolean":
       // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
-        throw new Error(`Extra keys not allowed for type 'boolean' at path '${path}'`);
+        throw new Error(`As you have specified type 'boolean' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`);
       }
       return z.boolean().nullable();
     case "array":
