@@ -1,9 +1,6 @@
-//meta/llama-3.1-8b-instruct
-
 import { NextRequest, NextResponse } from "next/server"
 import { ZodTypeAny, z } from "zod"
-import { EXAMPLE_ANSWER1, EXAMPLE_PROMPT1, EXAMPLE_ANSWER2, EXAMPLE_PROMPT2 } from "@/lib/example";
-
+import { EXAMPLE_ANSWER1, EXAMPLE_PROMPT1, EXAMPLE_ANSWER2, EXAMPLE_PROMPT2, EXAMPLE_PROMPT3, EXAMPLE_ANSWER3 } from "@/lib/example";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY as string;
@@ -21,41 +18,47 @@ const generationConfig = {
   responseMimeType: "application/json",
 };
 
-const determineSchemaType = (schema: any): string => {
+// Helper function to track the schema path
+const determineSchemaType = (schema: any, path: string): string => {
   if (!schema.hasOwnProperty("type")) {
     if (Array.isArray(schema)) {
-      return "array"
+      return "array";
+    } else if (typeof schema === "object") {
+      return "object";
     } else {
-      return typeof schema
+      throw new Error(`Schema is missing a 'type' key at path: ${path}`);
     }
   }
-  return schema.type
+  return schema.type;
 }
 
-const jsonSchemaToZod = (schema: any): ZodTypeAny => {
-  const type = determineSchemaType(schema)
+const jsonSchemaToZod = (schema: any, path = ''): ZodTypeAny => {
+  const type = determineSchemaType(schema, path);
 
   switch (type) {
     case "string":
-      return z.string().nullable()
+      return z.string().nullable();
     case "number":
-      return z.number().nullable()
+      return z.number().nullable();
     case "boolean":
-      return z.boolean().nullable()
+      return z.boolean().nullable();
     case "array":
-      return z.array(jsonSchemaToZod(schema.items)).nullable()
+      if (!schema.items) {
+        throw new Error(`Array schema must have 'items' defined at path: ${path}`);
+      }
+      return z.array(jsonSchemaToZod(schema.items, `${path}.items`)).nullable();
     case "object":
-      const shape: Record<string, ZodTypeAny> = {}
+      const shape: Record<string, ZodTypeAny> = {};
       for (const key in schema) {
         if (key !== "type") {
-          shape[key] = jsonSchemaToZod(schema[key])
+          shape[key] = jsonSchemaToZod(schema[key], `${path}.${key}`);
         }
       }
-      return z.object(shape)
+      return z.object(shape);
     default:
-      throw new Error(`Unsupported schema type: ${type}`)
+      throw new Error(`Unsupported schema type at path: ${path}`);
   }
-}
+};
 
 type PromiseExecutor<T> = (
   resolve: (value: T) => void,
@@ -68,88 +71,112 @@ class RetryablePromise<T> extends Promise<T> {
     executor: PromiseExecutor<T>
   ): Promise<T> {
     return new RetryablePromise<T>(executor).catch((error) => {
-      return retries > 0
-        ? RetryablePromise.retry(retries - 1, executor)
-        : RetryablePromise.reject(error)
-    })
+      if (retries > 0) {
+        console.log(`Retrying... Attempts left: ${retries}`);
+        return RetryablePromise.retry(retries - 1, executor);
+      }
+      return RetryablePromise.reject(error);
+    });
   }
 }
 
 export const POST = async (req: NextRequest) => {
-  const body = await req.json()
+  try {
+    const body = await req.json();
 
-  const genericSchema = z.object({
-    data: z.string(),
-    format: z.object({}).passthrough(),
-  })
+    const genericSchema = z.object({
+      data: z.string(),
+      format: z.object({}).passthrough(),
+    });
 
-  const { data, format } = genericSchema.parse(body)
+    const { data, format } = genericSchema.parse(body);
 
-  const dynamicSchema = jsonSchemaToZod(format)
+    console.log(format);
 
-  const content = `DATA: \n"${data}"\n\nExpected JSON format: ${JSON.stringify(
-    format)}\n\nValid JSON output in expected format:`
+    // Convert format schema to Zod
+    const dynamicSchema = jsonSchemaToZod(format);
 
-  const validationResult = await RetryablePromise.retry<string>(
-    3,
-    async (resolve, reject) => {
-      try {
+    const content = `DATA: \n"${data}"\n\nExpected JSON format: ${JSON.stringify(
+      format)}`;
 
-        const SYSTEM = "You are an AI that converts text data into the attached JSON format 100% of the time or returns NULL in JSON. You respond with nothing but valid JSON based on the input data or format specified is NULL. Your output should DIRECTLY be valid JSON, nothing added before or after. You will begin right with the opening curly brace and end with the closing curly brace. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
+    const validationResult = await RetryablePromise.retry<string>(
+      5,
+      async (resolve, reject) => {
+        try {
+          const SYSTEM = "You are the best text data to attached JSON format converter. You respond with valid JSON only. You will begin right with the opening curly brace and end with the closing curly brace. Only if you absolutely cannot determine a field, use the value null. No comma should be there after the last item in the JSON\n\n"
 
-        const GenerateJSON = model.startChat({
-          generationConfig,
-          history: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: SYSTEM + EXAMPLE_PROMPT1,
-                },
-              ],
-            },
-            {
-              role: "model",
-              parts: [
-                {
-                  text: EXAMPLE_ANSWER1,
-                }
-              ],
-            },
-            {
-              role: "user",
-              parts: [
-                {
-                  text: EXAMPLE_PROMPT2,
-                },
-              ],
-            },
-            {
-              role: "model",
-              parts: [
-                {
-                  text: EXAMPLE_ANSWER2,
-                }
-              ],
-            },
-          ],
-        });
+          const GenerateJSON = model.startChat({
+            generationConfig,
+            history: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: SYSTEM + EXAMPLE_PROMPT1,
+                  },
+                ],
+              },
+              {
+                role: "model",
+                parts: [
+                  {
+                    text: EXAMPLE_ANSWER1,
+                  }
+                ],
+              },
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: SYSTEM + EXAMPLE_PROMPT2,
+                  },
+                ],
+              },
+              {
+                role: "model",
+                parts: [
+                  {
+                    text: EXAMPLE_ANSWER2,
+                  }
+                ],
+              },
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: SYSTEM + EXAMPLE_PROMPT3,
+                  },
+                ],
+              },
+              {
+                role: "model",
+                parts: [
+                  {
+                    text: EXAMPLE_ANSWER3,
+                  }
+                ],
+              },
+            ],
+          });
 
-        const res = await GenerateJSON.sendMessage(
-          SYSTEM + content
-        )
+          const res = await GenerateJSON.sendMessage(SYSTEM + content);
 
-        const text = res.response.text()
-        console.log(text)
+          const text = await res.response.text();
+          console.log(text);
 
-        const validationResult = dynamicSchema.parse(JSON.parse(text || ""))
+          // Validate the JSON
+          const parsedJson = JSON.parse(text);
 
-        return resolve(validationResult)
-      } catch (err) {
-        reject(err)
+          resolve(parsedJson);
+        } catch (err) {
+          reject(err);
+        }
       }
-    }
-  )
+    );
 
-  return NextResponse.json(validationResult, { status: 200 })
-}
+    return NextResponse.json(validationResult, { status: 200 });
+  } catch (err: any) {
+    // Catch the error thrown by jsonSchemaToZod and return it in the response
+    return NextResponse.json({ error: err.message }, { status: 400 });
+  }
+};
