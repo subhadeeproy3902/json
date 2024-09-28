@@ -123,7 +123,6 @@ export const POST = async (req: NextRequest) => {
     // Convert the JSON schema to Zod schema
     const dynamicSchema = jsonSchemaToZod(format);
 
-
     const content = `DATA: \n"${data}"\n\nExpected JSON format: ${JSON.stringify(
       format
     )}`;

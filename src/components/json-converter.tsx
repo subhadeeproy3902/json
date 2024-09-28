@@ -9,6 +9,92 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { oneDark, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import CodeEditor from "@uiw/react-textarea-code-editor";
+import { z, ZodTypeAny } from "zod";
+
+const determineSchemaType = (schema: any): string => {
+  if (!schema.hasOwnProperty("type")) {
+    if (Array.isArray(schema)) {
+      return "array";
+    } else {
+      return typeof schema;
+    }
+  }
+  return schema.type;
+};
+
+const jsonSchemaToZod = (schema: any, path: string = ""): ZodTypeAny => {
+  const type = determineSchemaType(schema);
+
+  switch (type) {
+    case "string":
+      // Ensure no additional keys
+      if (Object.keys(schema).length > 1) {
+        throw new Error(
+          `Extra keys not allowed for type 'string' at path '${path}'`
+        );
+      }
+      return z.string().nullable();
+    case "number":
+      // Ensure no additional keys
+      if (Object.keys(schema).length > 1) {
+        throw new Error(
+          `Extra keys not allowed for type 'number' at path '${path}'`
+        );
+      }
+      return z.number().nullable();
+    case "boolean":
+      // Ensure no additional keys
+      if (Object.keys(schema).length > 1) {
+        throw new Error(
+          `Extra keys not allowed for type 'boolean' at path '${path}'`
+        );
+      }
+      return z.boolean().nullable();
+    case "array":
+      if (!schema.items.hasOwnProperty("type")) {
+        throw new Error(
+          `Missing type specification for array items at path '${path}'`
+        );
+      }
+      return z.array(jsonSchemaToZod(schema.items, `${path}[]`)).nullable(); // Add array notation for path
+    case "object":
+      const shape: Record<string, ZodTypeAny> = {};
+      for (const key in schema) {
+        if (key === "type") continue;
+
+        const currentPath = path ? `${path}.${key}` : key; // Update the current path
+
+        if (typeof schema[key] === "object") {
+          if (!schema[key].hasOwnProperty("type")) {
+            throw new Error(
+              `Missing type specification for ${key} at path '${currentPath}'`
+            );
+          }
+
+          // Check for primitive types that should not have additional keys
+          const itemType = schema[key].type;
+          if (["number", "string", "boolean"].includes(itemType)) {
+            if (Object.keys(schema[key]).length > 1) {
+              throw new Error(
+                `Extra keys not allowed for type '${itemType}' at path '${currentPath}'`
+              );
+            }
+            shape[key] = jsonSchemaToZod({ type: itemType }, currentPath);
+          } else {
+            shape[key] = jsonSchemaToZod(schema[key], currentPath);
+          }
+        } else {
+          // If the schema is not an object, it should have a type
+          throw new Error(
+            `Missing type specification for ${key} at path '${currentPath}'`
+          );
+        }
+      }
+      return z.object(shape);
+    default:
+      throw new Error(`Unsupported schema type: ${type} at path '${path}'`);
+  }
+};
 
 const FetchCodeJavaScript = `await fetch("https://json.mvp-subha.me/api/json", {
   method: "POST",
@@ -46,17 +132,6 @@ export function JsonConverter() {
   const [output, setOutput] = useState("Your JSON output will appear here");
   const [error, setError] = useState("");
 
-  const determineSchemaType = (schema: any): string => {
-    if (!schema.hasOwnProperty("type")) {
-      if (Array.isArray(schema)) {
-        return "array";
-      } else {
-        return typeof schema;
-      }
-    }
-    return schema.type;
-  };
-
   const handleConvert = async () => {
     setLoading(true);
     setError("");
@@ -70,12 +145,7 @@ export function JsonConverter() {
         throw new Error("Invalid JSON format");
       }
 
-      // type check the input data
-      Object.keys(parsedJson).forEach((key) => {
-        if (!parsedJson[key].hasOwnProperty("type")) {
-          throw new Error("Type is required for each key");
-        }
-      });
+      const x = jsonSchemaToZod(parsedJson);
 
       const demoOutput: Record<string, number | string> = {};
       Object.keys(parsedJson).forEach((key) => {
@@ -235,7 +305,11 @@ export function JsonConverter() {
               </SyntaxHighlighter>
 
               <div className="flex justify-end p-1.5 absolute z-10 top-0 right-0">
-                <Button onClick={handleCopy} variant="secondary" className="px-2.5 py-1">
+                <Button
+                  onClick={handleCopy}
+                  variant="secondary"
+                  className="px-2.5 py-1"
+                >
                   <Copy size={15} />
                 </Button>
               </div>
