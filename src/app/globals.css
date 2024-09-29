@@ -20,6 +20,11 @@
   }
 }
 
+.grainy-light {
+  background-image: url("/bg.png");
+  background-blend-mode: luminosity;
+}
+
 .language-json{
   white-space: pre-wrap !important;
 }

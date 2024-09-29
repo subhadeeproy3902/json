@@ -184,9 +184,9 @@ export function JsonConverter() {
   const [language, setLanguage] = useState("javascript");
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
+    <div className="max-w-7xl w-full mx-auto mt-8 sm:mt-0 space-y-8 p-8 sm:p-24">
       <div className="text-center space-y-4 pb-4">
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold pb-4">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold pb-4 leading-[3rem]">
           Convert{" "}
           <span className="bg-green-500 text-white px-3 py-2 rounded-lg">
             any data

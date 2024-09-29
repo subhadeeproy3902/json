@@ -28,48 +28,17 @@ age: null
 }`
 
 export const EXAMPLE_PROMPT3 = `DATA:
-The 'EchoSound' headphones were launched in October 2021, featuring active noise cancellation, 30 hours of battery life, and Bluetooth 5.0 connectivity. They are priced at $199.
+There are two 40 kilowatt bulbs and 3 fans
 
 Expected JSON format:
 {
-"productName": { "type": "string" },
-"launchDate": { "type": "string" },
-"features": {
-"type": "array",
-"items": { "type": "string" }
-},
-"batteryLife": {
-"type": "object",
-"properties": {
-"duration": { "type": "number" },
-"unit": { "type": "string" }
+  bulbs: { type: "object" },
+  fans: { type: "number" }
 }
-},
-"connectivity": { "type": "string" },
-"price": {
-"type": "object",
-"properties": {
-"amount": { "type": "number" },
-"currency": { "type": "string" }
-}
-}
-}`
+`
 
 export const EXAMPLE_ANSWER3 = `{
-"productName": "EchoSound",
-"launchDate": "October 2021",
-"features": [
-"active noise cancellation",
-"30 hours of battery life",
-"Bluetooth 5.0 connectivity"
-],
-"batteryLife": {
-"duration": 30,
-"unit": "hours"
-},
-"connectivity": "Bluetooth 5.0",
-"price": {
-"amount": 199,
-"currency": "$"
+  bulbs: null,
+  fans: 3
 }
-}`
+`
