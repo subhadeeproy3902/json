@@ -7,6 +7,16 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Any to JSON",
   description: "Convert any data to JSON",
+  openGraph: {
+    type: 'website',
+    images: [
+      {
+        url: 'https://i.postimg.cc/6QMGNM82/914-1x-shots-so-1.webp',
+        width: 1000,
+        height: 600,
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
