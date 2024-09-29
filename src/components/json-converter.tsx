@@ -27,7 +27,6 @@ const jsonSchemaToZod = (schema: any, path: string = ""): ZodTypeAny => {
 
   switch (type) {
     case "string":
-      // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
         throw new Error(
           `As you have specified type 'string' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`
@@ -35,7 +34,6 @@ const jsonSchemaToZod = (schema: any, path: string = ""): ZodTypeAny => {
       }
       return z.string().nullable();
     case "number":
-      // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
         throw new Error(
           `As you have specified type 'number' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`
@@ -43,7 +41,6 @@ const jsonSchemaToZod = (schema: any, path: string = ""): ZodTypeAny => {
       }
       return z.number().nullable();
     case "boolean":
-      // Ensure no additional keys
       if (Object.keys(schema).length > 1) {
         throw new Error(
           `As you have specified type 'boolean' for path '${path}', you cannot have more than one key. If you want to add more keys, use type 'object' or 'array' instead.`
@@ -51,13 +48,24 @@ const jsonSchemaToZod = (schema: any, path: string = ""): ZodTypeAny => {
       }
       return z.boolean().nullable();
     case "array":
-      if (!schema.items.hasOwnProperty("type")) {
+      if (Object.keys(schema).length <= 1) {
+        throw new Error(
+          `At least one key is required for 'array' type at path '${path}'`
+        );
+      }
+      if (!schema.items || !schema.items.hasOwnProperty("type")) {
         throw new Error(
           `Missing type specification for array items at path '${path}'`
         );
       }
-      return z.array(jsonSchemaToZod(schema.items, `${path}[]`)).nullable(); // Add array notation for path
+      return z.array(jsonSchemaToZod(schema.items, `${path}[]`)).nullable();
     case "object":
+      const keys = Object.keys(schema).filter((k) => k !== "type");
+      if (keys.length === 0) {
+        throw new Error(
+          `At least one key is required for 'object' type at path '${path}'`
+        );
+      }
       const shape: Record<string, ZodTypeAny> = {};
       for (const key in schema) {
         if (key === "type") continue;
