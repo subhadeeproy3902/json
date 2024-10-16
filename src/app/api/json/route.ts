@@ -112,7 +112,6 @@ class RetryablePromise<T> extends Promise<T> {
   ): Promise<T> {
     return new RetryablePromise<T>(executor).catch((error) => {
       if (retries > 0) {
-        console.log(`Retrying... Attempts left: ${retries}`);
         return RetryablePromise.retry(retries - 1, executor);
       }
       return RetryablePromise.reject(error);
@@ -201,7 +200,6 @@ export const POST = async (req: NextRequest) => {
           const res = await GenerateJSON.sendMessage(SYSTEM + content);
 
           const text = await res.response.text();
-          console.log(text);
 
           // Validate the JSON
           const parsedJson = JSON.parse(text);
